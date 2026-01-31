@@ -23,3 +23,9 @@ It creates a deterministic, append-only hash chain that can later be integrated 
 ---
 
 ## Project Structure
+
+## Phase 2 (In Progress)
+
+Phase 2 integrates ProofGraph with a real Teltonika RUTX50 router via SSH.
+It captures real WAN loss, failover, and recovery events and generates
+an append-only SHA-256 hash-chained proof file, with verification tooling.

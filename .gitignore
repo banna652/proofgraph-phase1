@@ -1,0 +1,4 @@
+proofgraph/output/*
+!proofgraph/output/.gitkeep
+__pycache__/
+*.pyc
