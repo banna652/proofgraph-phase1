@@ -21,7 +21,10 @@ def verify(proofs):
     prev_hash_expected = None
 
     for i, p in enumerate(proofs):
-        ev = {"timestamp": p["timestamp"], "event_type": p["event_type"]}
+        ev = p.get("event")
+        if ev is None:
+            ev = {"timestamp": p.get("timestamp"), "event_type": p.get("event_type")}
+
         prev_hash = p["prev_hash"]
         stored = p["hash"]
 
@@ -34,7 +37,7 @@ def verify(proofs):
                 print(f"FAIL @ {i}: chain broken (prev_hash mismatch)")
                 return False
 
-        payload = json.dumps(ev, sort_keys=True)
+        payload = json.dumps(ev, sort_keys=True, separators=(",", ":"))
         computed = compute_hash(payload + prev_hash, algo=HASH_ALGO)
 
         if computed != stored:
@@ -48,9 +51,22 @@ def verify(proofs):
 
 def replay(proofs, limit=0):
     n = len(proofs) if limit <= 0 else min(limit, len(proofs))
+
     for i in range(n):
         p = proofs[i]
-        print(f"[{i}] {p['timestamp']} | {p['event_type']} | prev={p['prev_hash'][:10]}.. | hash={p['hash'][:10]}..")
+        
+        event = p.get("event")
+        
+        if event is None:
+            event = {
+                "timestamp": p.get("timestamp"),
+                "event_type": p.get("event_type"),
+            }
+        
+        ts = event.get("timestamp")
+        et = event.get("event_type")
+
+        print(f"[{i}] {ts} | {et} | prev={p['prev_hash'][:10]}.. | hash={p['hash'][:10]}..")
 
 def main():
     ap = argparse.ArgumentParser()

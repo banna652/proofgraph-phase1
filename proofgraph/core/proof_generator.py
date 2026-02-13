@@ -14,12 +14,11 @@ def append_events(proofs: List[Dict[str, Any]], events: List[Dict[str, Any]]) ->
     
     for ev in events:
         # deterministic payload
-        payload = json.dumps(ev, sort_keys=True)
+        payload = json.dumps(ev, sort_keys=True, separators=(",", ":"))
         h = compute_hash(payload + prev, algo=HASH_ALGO)
         
         proofs.append({
-            "timestamp": ev["timestamp"],
-            "event_type": ev["event_type"],
+            "event": ev,
             "prev_hash": prev,
             "hash": h
         })
