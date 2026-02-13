@@ -1,14 +1,9 @@
 from __future__ import annotations
-
-from dataclasses import dataclass
 from typing import Dict, List, Protocol
 
-Event = Dict[str, object]
+from proofgraph.core.state import SourceState
 
-@dataclass
-class SourceState:
-    # Cursor state for incremental fetching.
-    last_id: int = 0
+Event = Dict[str, object]
     
 class EventSource(Protocol):
     # All event sources (simulated, router, syslog) must implement fetch().
