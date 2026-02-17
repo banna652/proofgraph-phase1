@@ -16,3 +16,7 @@ proofgraph/output/proof.json
 proofgraph/output/*.json
 __pycache__/
 *.pyc
+
+.venv/
+venv/
+.env
