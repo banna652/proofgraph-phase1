@@ -8,4 +8,4 @@ services:
       - INGEST_TOKEN=${INGEST_TOKEN:-devtoken}
     volumes:
       - ./proofgraph/output:/app/proofgraph/output
-    user: "${UID}:${GID}"
+    user: "${LOCAL_UID}:${LOCAL_GID}"

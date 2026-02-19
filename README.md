@@ -1,17 +1,14 @@
 # ProofGraph – Phase 2A (v1.1)
 
-Deterministic Integrity Core (MVP)
-
 ProofGraph Phase 2A implements a strictly deterministic, tamper-evident integrity engine.
 
-This version is frozen under Phase 2A v1.1 scope and includes only the minimal deterministic integrity core.
+This implementation follows the frozen Phase 2A v1.1 scope. No features beyond this specification are included.
 
----
+---------------------------------------------------------------------
 
-## Scope (Phase 2A v1.1)
+SCOPE (Phase 2A v1.1)
 
-### Included
-
+Included:
 - Deterministic canonical normalization
 - Sequential SHA-256 chaining
 - Fixed genesis constant
@@ -21,8 +18,7 @@ This version is frozen under Phase 2A v1.1 scope and includes only the minimal d
 - Dockerized deployment
 - Corruption detection test scenario
 
-### Excluded (Out of Scope)
-
+Excluded (Out of Scope):
 - No signature system
 - No certificate endpoint
 - No public verification mechanism
@@ -31,50 +27,36 @@ This version is frozen under Phase 2A v1.1 scope and includes only the minimal d
 - No scalability layer
 - No production hardening
 
----
+---------------------------------------------------------------------
 
-## Architecture Overview
+ARCHITECTURE OVERVIEW
 
 Each incoming event is:
+1) Canonically normalized (sorted, stable JSON)
+2) Combined with the previous hash
+3) Hashed using SHA-256
+4) Appended to an append-only proof file
+5) State updated with last_id and last_hash
 
-1. Canonically normalized (sorted, stable JSON)
-2. Combined with previous hash
-3. Hashed using SHA-256
-4. Appended to an append-only proof file
-5. State updated with `last_id` and `last_hash`
+Chain formula:
+hash_n = SHA256(canonical_event + previous_hash)
 
-### Chain Formula
-
-```
-hash_n = SHA256( canonical_event + previous_hash )
-```
-
-### Genesis
-
-```
+Genesis constant:
 previous_hash = "GENESIS_V1"
-```
 
-Any modification of stored data breaks the chain.
+Any modification, deletion, or reordering of stored entries breaks the chain.
 
----
+---------------------------------------------------------------------
 
-## API Endpoints
+API ENDPOINTS
 
-### POST /event
+POST /event
 
-Ingests a canonical event and appends it to the integrity chain.
-
-#### Required Headers
-
-```
+Headers:
 Authorization: Bearer <INGEST_TOKEN>
 Content-Type: application/json
-```
 
-#### Example Payload
-
-```json
+Example payload:
 {
   "id": 1,
   "timestamp": "2026-02-17T10:00:00Z",
@@ -83,26 +65,19 @@ Content-Type: application/json
   "message": "wan down",
   "device_id": "rutx50-01"
 }
-```
 
----
+GET /state
 
-### GET /state
-
-Returns current integrity state:
-
-```json
+Returns:
 {
   "last_id": 1,
   "last_hash": "<current_hash>"
 }
-```
 
----
+---------------------------------------------------------------------
 
-## Project Structure
+PROJECT STRUCTURE
 
-```
 proofgraph_v0/
 ├── Dockerfile
 ├── docker-compose.yml
@@ -126,90 +101,66 @@ proofgraph_v0/
     └── output/
         ├── proof.json
         └── state.json
-```
 
----
+---------------------------------------------------------------------
 
-## Local Development (Docker)
+LOCAL DEVELOPMENT (Docker)
 
-### Build & Run
-
-```
+Build and run:
 docker compose up --build
-```
 
 Server runs at:
-
-```
 http://localhost:8000
-```
 
----
+---------------------------------------------------------------------
 
-## Environment Variable
+ENVIRONMENT VARIABLE
 
-Set ingest token:
-
-```
+Set ingest token before sending events:
 export INGEST_TOKEN=devtoken
-```
 
----
+Note:
+INGEST_TOKEN must match the Authorization header for POST /event.
 
-## Manual Test
+---------------------------------------------------------------------
 
-### Send Event
+MANUAL TEST
 
-```
+Send event:
 curl -X POST http://localhost:8000/event \
   -H "Authorization: Bearer devtoken" \
   -H "Content-Type: application/json" \
   -d '{"id":1,"timestamp":"2026-02-17T10:00:00Z","event_type":"WAN_LOSS","severity":"info","message":"wan down","device_id":"rutx50-01"}'
-```
 
-### Check State
-
-```
+Check state:
 curl http://localhost:8000/state
-```
 
----
+---------------------------------------------------------------------
 
-## Verification Tool
+VERIFICATION TOOL
 
 Verify integrity:
-
-```
 python -m proofgraph.tools.verify --file proofgraph/output/proof.json
-```
 
 Replay entries:
-
-```
 python -m proofgraph.tools.verify --file proofgraph/output/proof.json --replay --limit 10
-```
 
----
+---------------------------------------------------------------------
 
-## Corruption Detection Test
+CORRUPTION DETECTION TEST
 
-Automated deterministic corruption test:
-
-```
+Run deterministic tamper test:
 ./tamper_test.sh
-```
 
-Expected result:
+Expected:
+First verification → OK
+After tampering → FAIL (hash mismatch detected)
 
-- First verification → OK
-- After tampering → FAIL (hash mismatch detected)
+---------------------------------------------------------------------
 
----
-
-## Determinism Guarantee
+DETERMINISM GUARANTEE
 
 For identical canonical input:
-
 - Same previous hash
 - Same canonical normalization
 - Same SHA-256 output
@@ -217,23 +168,22 @@ For identical canonical input:
 
 ProofGraph Phase 2A guarantees strict determinism.
 
----
+---------------------------------------------------------------------
 
-## Deployment
+DEPLOYMENT
 
 Phase 2A delivers:
-
 - Self-contained Docker image
-- docker-compose.yml
+- docker-compose configuration
 - Deterministic integrity core
 - No VPS-specific configuration required
 
 Deployment to VPS handled externally.
 
----
+---------------------------------------------------------------------
 
-## Status
+STATUS
 
-Phase 2A v1.1 — Implementation Complete  
-Deterministic Core — Stable  
+Phase 2A v1.1 — Implementation Complete
+Deterministic Core — Stable
 Scope — Frozen
