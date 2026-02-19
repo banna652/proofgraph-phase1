@@ -1,118 +1,239 @@
-# ProofGraph V0
+# ProofGraph – Phase 2A (v1.1)
 
-Tamper-evident, append-only network continuity proof system.
+Deterministic Integrity Core (MVP)
 
----
+ProofGraph Phase 2A implements a strictly deterministic, tamper-evident integrity engine.
 
-# Phase 1 (Completed)
-
-## Purpose
-Phase 1 demonstrates a minimal proof-generation flow using simulated network events.
-
-It builds a deterministic SHA-256 hash chain and validates integrity locally.
-
-## Phase 1 Capabilities
-- Simulated WAN loss / failover / recovery events
-- SHA-256 hash chaining
-- Append-only proof file (`proof.json`)
-- Verification tool with replay support
-- Tamper detection (hash mismatch detection)
+This version is frozen under Phase 2A v1.1 scope and includes only the minimal deterministic integrity core.
 
 ---
 
-# Phase 2 (In Progress – Edge-Centric Architecture)
+## Scope (Phase 2A v1.1)
 
-Phase 2 integrates ProofGraph with a real Teltonika RUTX50 router.
+### Included
 
-Architecture direction (confirmed by Teltonika engineering):
+- Deterministic canonical normalization
+- Sequential SHA-256 chaining
+- Fixed genesis constant
+- Append-only storage
+- Persistent state tracking
+- Same input → same hash guarantee
+- Dockerized deployment
+- Corruption detection test scenario
 
-- No RMS webhooks
-- RMS logs are RMS-initiated only
-- Router-level events must be collected from:
-  - RutOS Web API (Events Log endpoint)
-  - or Syslog forwarding
+### Excluded (Out of Scope)
 
-## Phase 2 Goals
-
-- Collect structured router events at the edge
-- Normalize events into canonical format
-- Generate append-only SHA-256 hash chain
-- Persist cursor state (`state.json`) for incremental ingestion
-- Provide verification + replay tooling
-- No UI / No cloud (edge-focused validation)
+- No signature system
+- No certificate endpoint
+- No public verification mechanism
+- No multi-device support
+- No authentication hardening
+- No scalability layer
+- No production hardening
 
 ---
 
-# Project Structure
+## Architecture Overview
 
+Each incoming event is:
+
+1. Canonically normalized (sorted, stable JSON)
+2. Combined with previous hash
+3. Hashed using SHA-256
+4. Appended to an append-only proof file
+5. State updated with `last_id` and `last_hash`
+
+### Chain Formula
+
+```
+hash_n = SHA256( canonical_event + previous_hash )
+```
+
+### Genesis
+
+```
+previous_hash = "GENESIS_V1"
+```
+
+Any modification of stored data breaks the chain.
+
+---
+
+## API Endpoints
+
+### POST /event
+
+Ingests a canonical event and appends it to the integrity chain.
+
+#### Required Headers
+
+```
+Authorization: Bearer <INGEST_TOKEN>
+Content-Type: application/json
+```
+
+#### Example Payload
+
+```json
+{
+  "id": 1,
+  "timestamp": "2026-02-17T10:00:00Z",
+  "event_type": "WAN_LOSS",
+  "severity": "info",
+  "message": "wan down",
+  "device_id": "rutx50-01"
+}
+```
+
+---
+
+### GET /state
+
+Returns current integrity state:
+
+```json
+{
+  "last_id": 1,
+  "last_hash": "<current_hash>"
+}
+```
+
+---
+
+## Project Structure
+
+```
 proofgraph_v0/
-├── config.py
-├── main.py
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
-├── .env.example
+├── tamper_test.sh
+├── README.md
 └── proofgraph/
+    ├── config.py
     ├── core/
     │   ├── hash.py
-    │   ├── proof_generator.py
     │   ├── state.py
-    │   └── storage.py
-    ├── events/
-    │   ├── base.py
-    │   ├── simulated.py
-    │   ├── router.py
-    │   └── syslog.py
-    └── tools/
-        └── verify.py
+    │   ├── storage.py
+    │   └── proof_generator.py
+    ├── server/
+    │   ├── app.py
+    │   ├── auth.py
+    │   ├── canonical.py
+    │   └── schema.py
+    ├── tools/
+    │   └── verify.py
+    └── output/
+        ├── proof.json
+        └── state.json
+```
 
 ---
 
-# How to Run
+## Local Development (Docker)
 
-## Install
-pip install -r requirements.txt
+### Build & Run
 
----
+```
+docker compose up --build
+```
 
-## Simulated Mode
+Server runs at:
 
-python3 main.py --source simulated
-python3 -m proofgraph.tools.verify --file proofgraph/output/proof.json --replay --limit 10
-
----
-
-## Router Mode (RutOS API over WireGuard)
-
-Set environment variables:
-
-export RUTOS_BASE_URL="https://<router_tunnel_ip>"
-export RUTOS_USERNAME="..."
-export RUTOS_PASSWORD="..."
-export RUTOS_VERIFY_TLS=0
-
-Then run:
-
-python3 main.py --source router
-python3 -m proofgraph.tools.verify --file proofgraph/output/proof.json --replay --limit 10
+```
+http://localhost:8000
+```
 
 ---
 
-## Reset Output
+## Environment Variable
 
-rm -f proofgraph/output/proof.json proofgraph/output/state.json
-python3 -c "from proofgraph.core.state import save_state, SourceState; save_state(SourceState(last_id=0)); print('state reset')"
+Set ingest token:
 
----
-
-# Security Notes
-
-- Proof entries store full normalized event payload
-- Each event is hash-linked to the previous one
-- Any modification breaks the chain
-- Cursor state ensures incremental ingestion (id > last_id)
+```
+export INGEST_TOKEN=devtoken
+```
 
 ---
 
-# Status
+## Manual Test
 
-Phase 1: Complete  
-Phase 2: In progress (awaiting WireGuard endpoint parameters)
+### Send Event
+
+```
+curl -X POST http://localhost:8000/event \
+  -H "Authorization: Bearer devtoken" \
+  -H "Content-Type: application/json" \
+  -d '{"id":1,"timestamp":"2026-02-17T10:00:00Z","event_type":"WAN_LOSS","severity":"info","message":"wan down","device_id":"rutx50-01"}'
+```
+
+### Check State
+
+```
+curl http://localhost:8000/state
+```
+
+---
+
+## Verification Tool
+
+Verify integrity:
+
+```
+python -m proofgraph.tools.verify --file proofgraph/output/proof.json
+```
+
+Replay entries:
+
+```
+python -m proofgraph.tools.verify --file proofgraph/output/proof.json --replay --limit 10
+```
+
+---
+
+## Corruption Detection Test
+
+Automated deterministic corruption test:
+
+```
+./tamper_test.sh
+```
+
+Expected result:
+
+- First verification → OK
+- After tampering → FAIL (hash mismatch detected)
+
+---
+
+## Determinism Guarantee
+
+For identical canonical input:
+
+- Same previous hash
+- Same canonical normalization
+- Same SHA-256 output
+- Same resulting hash
+
+ProofGraph Phase 2A guarantees strict determinism.
+
+---
+
+## Deployment
+
+Phase 2A delivers:
+
+- Self-contained Docker image
+- docker-compose.yml
+- Deterministic integrity core
+- No VPS-specific configuration required
+
+Deployment to VPS handled externally.
+
+---
+
+## Status
+
+Phase 2A v1.1 — Implementation Complete  
+Deterministic Core — Stable  
+Scope — Frozen
