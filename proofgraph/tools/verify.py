@@ -2,16 +2,29 @@ import argparse
 import json
 from pathlib import Path
 
-from config import HASH_ALGO
+from proofgraph.config import HASH_ALGO
 from proofgraph.core.hash import compute_hash
 
-GENESIS_OK = {"GENESIS", "0"}
+GENESIS_OK = {"GENESIS","GENESIS_V1", "0"}
 
 def load(path: Path):
     if not path.exists() or path.stat().st_size == 0:
         return []
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
+    
+def _get_event_payload(p: dict)-> dict:
+    if "canonical" in p and isinstance(p["canonical"], dict):
+        return p["canonical"]
+    
+    ev = p.get("event")
+    if isinstance(ev, dict):
+        return ev
+    
+    return {
+        "timestamp": p.get("timestamp"),
+        "event_type": p.get("event_type"),
+    }
 
 def verify(proofs):
     if not proofs:
@@ -21,16 +34,14 @@ def verify(proofs):
     prev_hash_expected = None
 
     for i, p in enumerate(proofs):
-        ev = p.get("event")
-        if ev is None:
-            ev = {"timestamp": p.get("timestamp"), "event_type": p.get("event_type")}
+        ev = _get_event_payload(p)
 
         prev_hash = p["prev_hash"]
         stored = p["hash"]
 
         if i == 0:
             if prev_hash not in GENESIS_OK:
-                print(f"FAIL @ {i}: first prev_hash should be GENESIS/0, got {prev_hash}")
+                print(f"FAIL @ {i}: first prev_hash should be GENESIS, got {prev_hash}")
                 return False
         else:
             if prev_hash != prev_hash_expected:
@@ -54,18 +65,9 @@ def replay(proofs, limit=0):
 
     for i in range(n):
         p = proofs[i]
-        
-        event = p.get("event")
-        
-        if event is None:
-            event = {
-                "timestamp": p.get("timestamp"),
-                "event_type": p.get("event_type"),
-            }
-        
-        ts = event.get("timestamp")
-        et = event.get("event_type")
-
+        ev = _get_event_payload(p)
+        ts = ev.get("timestamp")
+        et = ev.get("event_type")
         print(f"[{i}] {ts} | {et} | prev={p['prev_hash'][:10]}.. | hash={p['hash'][:10]}..")
 
 def main():

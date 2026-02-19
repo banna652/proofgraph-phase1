@@ -1,0 +1,11 @@
+services:
+  proofgraph:
+    build: .
+    container_name: proofgraph_phase2a
+    ports:
+      - "8000:8000"
+    environment:
+      - INGEST_TOKEN=${INGEST_TOKEN:-devtoken}
+    volumes:
+      - ./proofgraph/output:/app/proofgraph/output
+    user: "${UID}:${GID}"
