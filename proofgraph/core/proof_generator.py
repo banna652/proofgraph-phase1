@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, List
 
-from config import HASH_ALGO
+from proofgraph.config import HASH_ALGO
 from proofgraph.core.hash import compute_hash
 
 GENESIS = "GENESIS"

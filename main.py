@@ -1,7 +1,7 @@
 from __future__ import annotations
 import argparse
 
-from config import PROOF_FILE
+from proofgraph.config import PROOF_FILE
 from proofgraph.core.proof_generator import append_events
 from proofgraph.core.storage import load_json, save_json
 from proofgraph.core.state import load_state, save_state
